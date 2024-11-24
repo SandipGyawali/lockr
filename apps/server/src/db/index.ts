@@ -15,7 +15,7 @@ export const conn: Pool =
     connectionString: "",
   });
 
-if (process.env.NODE_ENV !== "development") globalThis.conn = conn;
+if (process.env.NODE_ENV !== "development") globalDb.conn = conn;
 
 /**
  * export database instance
