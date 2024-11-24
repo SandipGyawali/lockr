@@ -1,0 +1,13 @@
+{
+    "watch": [
+        "src"
+    ],
+    "ext": "ts",
+    "ignore": [
+        "node_modules"
+    ],
+    "exec": "bun run build && node ./dist/main.js",
+    "env": {
+        "NODE_ENV": "development"
+    }
+}
