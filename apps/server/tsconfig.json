@@ -2,8 +2,7 @@
   "extends": "@repo/typescript-config/server.json",
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
-    "lib": ["ES2022", "DOM"],
+    "module": "ES6",
     "moduleResolution": "node",
     "rootDir": "./src",
     "outDir": "./dist",
@@ -20,6 +19,6 @@
     "noImplicitThis": false,
     "strictNullChecks": false
   },
-  "include": ["src", "__tests__", "src/**/*.ts"],
+  "include": ["src", "src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,7 +1,7 @@
 import { AppError } from "../utils/AppError";
 import { ErrorRequestHandler } from "express";
 import { formatZodError } from "./zod.error.handler";
-import { z } from "zod";
+import { ZodError } from "zod";
 import { HTTPStatusCode } from "../config/status.code";
 
 export const ErrorHandler: ErrorRequestHandler = (
@@ -15,7 +15,7 @@ export const ErrorHandler: ErrorRequestHandler = (
   /**
    * error handler for zod error
    */
-  if (error instanceof z.ZodError) {
+  if (error instanceof ZodError) {
     return formatZodError(res, error);
   }
 
