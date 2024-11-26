@@ -12,6 +12,7 @@ export const asyncHandler =
     try {
       await controller(req, res, next);
     } catch (err) {
+      console.log(`The error is: ${err}`);
       next(err);
     }
   };
