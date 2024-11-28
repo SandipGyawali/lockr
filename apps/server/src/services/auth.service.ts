@@ -1,13 +1,13 @@
 import { db } from "../db";
-import type { RegisterDto, LoginDto } from "../dto/auth.dto";
-import { userSchema, verificationSchema } from "../db/schema";
+import type { LoginDto, RegisterDto } from "../dto/auth.dto";
+import { sessionSchema, userSchema, verificationSchema } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { AppError } from "../utils/AppError";
 import { HTTPStatusCode } from "../config/status.code";
 import { Verification } from "../common/enums/verification.enum";
-import { format, formatDistanceToNow } from "date-fns";
-import { hashValue } from "../utils/bcrypt";
+import { compareValue, hashValue } from "../utils/bcrypt";
 import { v4 as uuid } from "uuid";
+import jwt from "jsonwebtoken";
 
 export class AuthService {
   constructor() {}
@@ -71,6 +71,84 @@ export class AuthService {
 
     return {
       user,
+    };
+  }
+
+  /**
+   * login service
+   */
+  public async login(loginDto: LoginDto) {
+    /**
+     * find if the user exists
+     */
+    const user = (
+      await db
+        .select()
+        .from(userSchema)
+        .where(eq(userSchema.email, loginDto.email))
+    ).at(0);
+
+    if (user)
+      throw new AppError(
+        "Invalid email or password!",
+        HTTPStatusCode.BadRequest,
+      );
+
+    // compare password
+    const _matchPassword = await compareValue(loginDto.password, user.password);
+
+    if (!_matchPassword) {
+      throw new AppError(
+        "Invalid password. Please Enter a valid Password",
+        HTTPStatusCode.BadRequest,
+      );
+    }
+
+    /**
+     * store the session login with the userAgent and also
+     * check if the user has enabled the 2fa.
+     */
+    const session = await db
+      .insert(sessionSchema)
+      .values({
+        userId: user.id,
+        userAgent: loginDto.userAgent,
+      })
+      .returning();
+
+    /**
+     * generate refresh and access token
+     */
+    const _token = jwt.sign(
+      {
+        userId: user.id,
+        session: session[0].userId,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.EXPIRES_IN },
+    );
+
+    const _refreshToken = jwt.sign(
+      {
+        userId: user.id,
+        session: session[0].userId,
+      },
+      process.env.JWT_REFRESH_SECRET,
+      {
+        expiresIn: process.env.REFRESH_EXPIRES_IN,
+      },
+    );
+
+    delete user.password;
+
+    return {
+      data: {
+        ...user,
+      },
+      token: {
+        accessToken: _token,
+        refreshToken: _refreshToken,
+      },
     };
   }
 }
