@@ -18,9 +18,6 @@ class AuthController {
    */
   public register = asyncHandler(
     async (req: Request, res: Response, next: NextFunction): Promise<any> => {
-      const userAgent = req.headers["user-agent"];
-      console.log(userAgent);
-
       const { user } = await this.authService.register(req.body);
 
       return res.status(HTTPStatusCode.Created).json({
@@ -28,6 +25,32 @@ class AuthController {
         data: {
           ...user,
         },
+      });
+    },
+  );
+
+  /**
+   * login method
+   */
+  public login = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+      const userAgent = req.headers["user-agent"];
+
+      const response = await this.authService.login({ ...req.body, userAgent });
+
+      return res
+        .status(HTTPStatusCode.Ok)
+        .json({ message: "Login Successful", ...response });
+    },
+  );
+
+  /**
+   * refresh method handler
+   */
+  refresh = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+      return res.status(HTTPStatusCode.Ok).json({
+        message: "Refresh Token sent successful",
       });
     },
   );
