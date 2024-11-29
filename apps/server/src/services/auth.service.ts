@@ -1,5 +1,10 @@
 import { db } from "../db";
-import type { LoginDto, RegisterDto } from "../dto/auth.dto";
+import type {
+  LoginInterface,
+  LogoutInterface,
+  RegisterInterface,
+  ResetPasswordInterface,
+} from "../dto/auth.dto";
 import { sessionSchema, userSchema, verificationSchema } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { AppError } from "../utils/AppError";
@@ -7,7 +12,7 @@ import { HTTPStatusCode } from "../config/status.code";
 import { Verification } from "../common/enums/verification.enum";
 import { compareValue, hashValue } from "../utils/bcrypt";
 import { v4 as uuid } from "uuid";
-import jwt from "jsonwebtoken";
+import { signToken, verifyToken } from "../utils/jwt";
 
 export class AuthService {
   constructor() {}
@@ -15,7 +20,7 @@ export class AuthService {
   /**
    * auth_register service
    */
-  public async register(registerDto: RegisterDto) {
+  public async register(registerDto: RegisterInterface) {
     // request input field
     const input = registerDto;
 
@@ -77,7 +82,7 @@ export class AuthService {
   /**
    * login service
    */
-  public async login(loginDto: LoginDto) {
+  public async login(loginDto: LoginInterface) {
     /**
      * find if the user exists
      */
@@ -88,7 +93,7 @@ export class AuthService {
         .where(eq(userSchema.email, loginDto.email))
     ).at(0);
 
-    if (user)
+    if (!user)
       throw new AppError(
         "Invalid email or password!",
         HTTPStatusCode.BadRequest,
@@ -119,25 +124,19 @@ export class AuthService {
     /**
      * generate refresh and access token
      */
-    const _token = jwt.sign(
-      {
-        userId: user.id,
-        session: session[0].userId,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.EXPIRES_IN },
-    );
+    const _token = signToken({
+      expiresIn: "1d",
+      isRefreshToken: false,
+      session: session[0].userId,
+      userId: user.id,
+    });
 
-    const _refreshToken = jwt.sign(
-      {
-        userId: user.id,
-        session: session[0].userId,
-      },
-      process.env.JWT_REFRESH_SECRET,
-      {
-        expiresIn: process.env.REFRESH_EXPIRES_IN,
-      },
-    );
+    const _refreshToken = signToken({
+      expiresIn: "3d",
+      isRefreshToken: true,
+      session: session[0].userId,
+      userId: user.id,
+    });
 
     delete user.password;
 
@@ -150,6 +149,113 @@ export class AuthService {
         refreshToken: _refreshToken,
       },
     };
+  }
+
+  /**
+   * refresh token handler
+   */
+  public async refreshToken({ refreshToken }: { refreshToken: string }) {
+    /**
+     * verify the incoming jwt request
+     */
+    const { payload } = verifyToken(refreshToken, true);
+
+    if (!payload) {
+      throw new AppError("Invalid refresh token");
+    }
+
+    const session = (
+      await db
+        .select()
+        .from(sessionSchema)
+        .where(eq(sessionSchema.userId, payload.session))
+    ).at(0);
+
+    const _date = Date.now();
+
+    if (!session) {
+      throw new AppError("Session Doesn't exists", HTTPStatusCode.NotFound);
+    }
+
+    if (session.expiresAt.getTime() <= _date) {
+      throw new AppError("Session Expired", HTTPStatusCode.Unauthorized);
+    }
+
+    // refresh the session.
+    const sessionRefresh = session.expiresAt.getTime() - _date;
+  }
+
+  public async forgotPassword(email: string) {
+    // const user = (
+    //   await db.select().from(userSchema).where(eq(userSchema.email, email))
+    // ).at(0);
+    // if(!user){
+    //   throw new AppError("User not found")
+    // }
+  }
+
+  public async resetPassword({
+    password,
+    _verificationCode,
+  }: ResetPasswordInterface) {
+    const _isValidCode = (
+      await db
+        .select()
+        .from(verificationSchema)
+        .where(eq(verificationSchema.code, _verificationCode))
+    ).at(0);
+
+    /**
+     * case for validation not successful
+     */
+    if (_isValidCode)
+      throw new AppError("Invalid or expired verification code.");
+
+    /**
+     * successful case after validating code
+     */
+    const hashedPassword = await hashValue(password);
+
+    const updatedUser = (
+      await db
+        .update(userSchema)
+        .set({
+          password: hashedPassword,
+        })
+        .where(eq(userSchema.id, _isValidCode.userId))
+        .returning()
+    ).at(0);
+
+    if (!updatedUser) throw new AppError("Failed to reset password");
+
+    // remove the verification instance for the specific user
+    await db
+      .delete(verificationSchema)
+      .where(eq(verificationSchema.userId, _isValidCode.userId));
+
+    delete updatedUser.password;
+    return {
+      user: updatedUser,
+    };
+  }
+
+  /**
+   * logout service handler
+   * @param sessionId
+   * @returns boolean
+   */
+  public async logout({ sessionId }: LogoutInterface) {
+    const _sessionRemove = (
+      await db
+        .delete(sessionSchema)
+        .where(eq(sessionSchema.id, sessionId))
+        .returning()
+    ).at(0);
+
+    if (!_sessionRemove)
+      throw new AppError("Error while removing session. Please try again");
+
+    return true;
   }
 }
 
