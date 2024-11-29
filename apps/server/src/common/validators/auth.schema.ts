@@ -1,3 +1,4 @@
+import { Request } from "express";
 import * as z from "zod";
 
 const _email = z.string().trim().email().min(1);
@@ -17,11 +18,23 @@ export const _registerSchema = z
     message: "Password doesn't match",
   });
 
+export type RegisterRequest = Request<
+  any,
+  any,
+  Required<z.infer<typeof _registerSchema>>
+>;
+
 /**
  * user login req body schema
  */
 export const _loginSchema = z.object({
   email: _email,
   password: _password,
-  userAgent: z.string().optional(),
+});
+
+/**
+ * user logout request body schema
+ */
+export const _logoutSchema = z.object({
+  sessionId: z.string().min(2, { message: "SessionId not provided" }),
 });
