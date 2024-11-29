@@ -1,7 +1,11 @@
 import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { userSchema } from "./user";
 
 export const sessionSchema = pgTable("t_session", {
-  userId: uuid("id").defaultRandom().primaryKey().notNull(),
+  id: uuid("id").primaryKey().defaultRandom().notNull(),
+  userId: uuid("id")
+    .references(() => userSchema.id)
+    .notNull(),
   userAgent: text("user_agent"),
   createdAt: timestamp("created_at").defaultNow(),
   expiresAt: timestamp("updated_at").$onUpdateFn(

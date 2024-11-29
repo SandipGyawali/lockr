@@ -1,13 +1,21 @@
-export interface RegisterDto {
+export interface RegisterInterface {
   name: string;
   email: string;
   password: string;
   confirmPassword: string;
-  userAgent?: string;
 }
 
-export interface LoginDto {
+export interface LoginInterface {
   email: string;
   password: string;
   userAgent?: string;
+}
+
+export interface ResetPasswordInterface {
+  password: string;
+  _verificationCode: string;
+}
+
+export interface LogoutInterface {
+  sessionId: string;
 }
