@@ -1,5 +1,6 @@
+CREATE TYPE "public"."verification_enum" AS ENUM('email_verification', 'password_reset');--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "t_session" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid NOT NULL,
 	"user_agent" text,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp
@@ -27,10 +28,16 @@ CREATE TABLE IF NOT EXISTS "t_verification" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"code" varchar(24),
-	"type" text,
+	"type" "verification_enum",
 	"created_at" timestamp DEFAULT now(),
 	"expires_at" timestamp NOT NULL
 );
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "t_session" ADD CONSTRAINT "t_session_id_t_user_id_fk" FOREIGN KEY ("id") REFERENCES "public"."t_user"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "t_user" ADD CONSTRAINT "t_user_user_preferences_t_user_preference_id_fk" FOREIGN KEY ("user_preferences") REFERENCES "public"."t_user_preference"("id") ON DELETE no action ON UPDATE no action;

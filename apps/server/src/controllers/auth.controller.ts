@@ -54,16 +54,20 @@ class AuthController {
   );
 
   /**
-   * refresh method handler
+   * refresh token method handler
    */
   public refresh = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
-      // const refreshToken = req.headers["authorization"];
-      // console.log(refreshToken);
-      // await this.authService.refreshToken({ refreshToken });
-      // return res.status(HTTPStatusCode.Ok).json({
-      //   message: "Refresh Token sent successful",
-      // });
+      /**
+       * need fixes here for the header to take
+       */
+      const refreshToken = req.headers["authorization"];
+
+      const response = await this.authService.refreshToken({ refreshToken });
+      return res.status(HTTPStatusCode.Ok).json({
+        message: "Refresh Token sent successful",
+        ...response,
+      });
     },
   );
 
