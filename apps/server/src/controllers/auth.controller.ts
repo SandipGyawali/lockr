@@ -76,7 +76,28 @@ class AuthController {
    * @param email
    * forgot password controller
    */
-  public async forgotPassword(email: string) {}
+  public forgotPassword = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction): Promise<any> => {
+      await this.authService.forgotPassword(req.body.email);
+
+      return res.status(HTTPStatusCode.Ok).json({
+        message: "Password reset email sent",
+      });
+    },
+  );
+
+  /**
+   * reset password
+   */
+  public resetPassword = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+      await this.authService.resetPassword(req.body);
+
+      return res.status(HTTPStatusCode.Ok).json({
+        message: "Password reset successful",
+      });
+    },
+  );
 
   /**
    * logout controller
