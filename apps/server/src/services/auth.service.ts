@@ -15,6 +15,9 @@ import { v4 as uuid } from "uuid";
 import { signToken, verifyToken } from "../utils/jwt";
 import { _calExpDate, _day, _minute, _minuteAgo } from "../utils/time";
 import { env } from "../lib/env";
+import { _generateRandom } from "../utils/uuide";
+import { sendMail } from "../mail/mailer";
+import { resetPasswdTemplate } from "../../../../template/reset-password";
 
 export class AuthService {
   constructor() {}
@@ -250,7 +253,38 @@ export class AuthService {
      * check if the attempt is greater than maximum attempts from database
      */
     if (attempts >= max_attempts) {
+      throw new AppError(
+        "Too many request, try again later",
+        HTTPStatusCode.TooManyRequests,
+      );
     }
+
+    const _expiresAt = _minute(15); //expires at 15 min from now
+    const validCode = (
+      await db
+        .insert(verificationSchema)
+        .values({
+          userId: user.id,
+          type: Verification.PASSWORD_RESET,
+          code: _generateRandom(),
+          expiresAt: _expiresAt,
+        })
+        .returning()
+    ).at(0);
+
+    const resetUrl = `${env.URL}/reset-password?code=${validCode.code}&exp=${_expiresAt.getTime()}`;
+
+    const { data, error } = await sendMail({
+      to: user.email,
+      ...resetPasswdTemplate(resetUrl),
+    });
+
+    if (!data.id) throw new AppError(`${error?.name} ${error?.message}`);
+
+    return {
+      url: resetUrl,
+      mailId: data.id,
+    };
   }
 
   public async resetPassword({

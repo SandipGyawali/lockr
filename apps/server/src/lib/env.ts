@@ -1,6 +1,7 @@
 import * as z from "zod";
 
 const ENV = z.object({
+  URL: z.string().url().min(1, { message: "app url not provided" }),
   DATABASE_URL: z
     .string({
       description: "Database Connection String",
