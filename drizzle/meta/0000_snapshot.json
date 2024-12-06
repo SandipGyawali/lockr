@@ -1,5 +1,5 @@
 {
-  "id": "9a78cf18-306e-42a5-a4e1-8f4809b16d95",
+  "id": "5273b1f9-f5ae-4028-b918-aadc551ec37a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -11,9 +11,8 @@
         "id": {
           "name": "id",
           "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "primaryKey": false,
+          "notNull": true
         },
         "user_agent": {
           "name": "user_agent",
@@ -36,7 +35,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "t_session_id_t_user_id_fk": {
+          "name": "t_session_id_t_user_id_fk",
+          "tableFrom": "t_session",
+          "tableTo": "t_user",
+          "columnsFrom": [
+            "id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -186,7 +199,8 @@
         },
         "type": {
           "name": "type",
-          "type": "text",
+          "type": "verification_enum",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
@@ -227,7 +241,16 @@
       "isRLSEnabled": false
     }
   },
-  "enums": {},
+  "enums": {
+    "public.verification_enum": {
+      "name": "verification_enum",
+      "schema": "public",
+      "values": [
+        "email_verification",
+        "password_reset"
+      ]
+    }
+  },
   "schemas": {},
   "sequences": {},
   "roles": {},
