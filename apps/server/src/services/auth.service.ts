@@ -4,15 +4,17 @@ import type {
   LogoutInterface,
   RegisterInterface,
   ResetPasswordInterface,
-} from "../dto/auth.dto";
+} from "../common/interface/auth.inferface";
 import { sessionSchema, userSchema, verificationSchema } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { and, count, eq, gt } from "drizzle-orm";
 import { AppError } from "../utils/AppError";
 import { HTTPStatusCode } from "../config/status.code";
 import { Verification } from "../common/enums/verification.enum";
 import { compareValue, hashValue } from "../utils/bcrypt";
 import { v4 as uuid } from "uuid";
 import { signToken, verifyToken } from "../utils/jwt";
+import { _calExpDate, _day, _minute, _minuteAgo } from "../utils/time";
+import { env } from "../lib/env";
 
 export class AuthService {
   constructor() {}
@@ -71,7 +73,7 @@ export class AuthService {
       userId: user.id,
       type: Verification.EMAIL_VERIFICATION,
       code: uuid().toString().substring(0, 20),
-      expiresAt: new Date(new Date().setMinutes(new Date().getMinutes() + 15)),
+      expiresAt: _minute(15),
     });
 
     return {
@@ -171,27 +173,84 @@ export class AuthService {
         .where(eq(sessionSchema.userId, payload.session))
     ).at(0);
 
-    const _date = Date.now();
+    const _now = Date.now();
 
     if (!session) {
       throw new AppError("Session Doesn't exists", HTTPStatusCode.NotFound);
     }
 
-    if (session.expiresAt.getTime() <= _date) {
+    if (session.expiresAt.getTime() <= _now) {
       throw new AppError("Session Expired", HTTPStatusCode.Unauthorized);
     }
 
     // refresh the session.
-    const sessionRefresh = session.expiresAt.getTime() - _date;
+    const sessionRefresh =
+      session.expiresAt.getTime() - _now <= 24 * 60 * 60 * 1000;
+
+    if (sessionRefresh) {
+      session.expiresAt = _calExpDate(env.JWT_REFRESH_EXPIRES_IN);
+
+      /**
+       * update session with new expiration time
+       */
+      await db.update(sessionSchema).set({
+        ...session,
+      });
+    }
+
+    /**
+     * generate refresh and access token and return
+     */
+
+    const _newRefreshToken = signToken({
+      userId: session.userId,
+      session: session.id,
+      isRefreshToken: true,
+      expiresIn: "1d",
+    });
+
+    const _newToken = signToken({
+      userId: session.userId,
+      session: session.id,
+      isRefreshToken: false,
+      expiresIn: "1d",
+    });
+
+    return {
+      token: _newRefreshToken,
+      refreshToken: _newToken,
+    };
   }
 
   public async forgotPassword(email: string) {
-    // const user = (
-    //   await db.select().from(userSchema).where(eq(userSchema.email, email))
-    // ).at(0);
-    // if(!user){
-    //   throw new AppError("User not found")
-    // }
+    const user = (
+      await db.select().from(userSchema).where(eq(userSchema.email, email))
+    ).at(0);
+
+    if (!user) {
+      throw new AppError("User not found");
+    }
+
+    const _timeAgo = _minuteAgo(3);
+    const max_attempts = 2;
+
+    const { count: attempts } = (
+      await db
+        .select({ count: count() })
+        .from(verificationSchema)
+        .where(
+          and(
+            eq(userSchema.id, user.id),
+            gt(verificationSchema.expiresAt, _timeAgo),
+          ),
+        )
+    ).at(0) || { count: 0 };
+
+    /**
+     * check if the attempt is greater than maximum attempts from database
+     */
+    if (attempts >= max_attempts) {
+    }
   }
 
   public async resetPassword({

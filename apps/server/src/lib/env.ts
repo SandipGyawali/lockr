@@ -22,6 +22,14 @@ const ENV = z.object({
     .default(8001),
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_SECRET: z.string().min(32),
+  JWT_EXPIRES_IN: z
+    .string()
+    .min(1, { message: "jwt expiration time is required" }),
+  JWT_REFRESH_EXPIRES_IN: z
+    .string()
+    .min(1, { message: "jwt refresh expiration time is required" }),
+  RESEND_API_KEY: z.string().min(6, { message: "Mail api key not provided" }),
+  MAIL_SENDER: z.string().min(3, { message: "mail send is not mentioned" }),
 });
 
 export const env = ENV.parse(process.env);
