@@ -32,5 +32,3 @@ export const resetPasswdTemplate = (url: string) => ({
     </body></html>
     `,
 });
-
-export const _verifyTemplate = (url: string) => ({});
